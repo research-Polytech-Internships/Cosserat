@@ -206,7 +206,7 @@ void BeamHookeLawForceField<DataTypes>::addForce(const MechanicalParams* mparams
     VecDeriv& f = *d_f.beginEdit();
     const VecCoord& x = d_x.getValue();
     // get the rest position (for non straight shape)
-    const VecCoord& x0 = this->mstate->read(VecCoordId::restPosition())->getValue();
+    const VecCoord& x0 = this->mstate->read(sofa::core::vec_id::read_access::restPosition)->getValue();
 
     f.resize(x.size());
     unsigned int sz = d_length.getValue().size();
@@ -268,7 +268,7 @@ void BeamHookeLawForceField<DataTypes>::addKToMatrix(const MechanicalParams* mpa
     unsigned int offset = mref.offset;
     Real kFact = (Real)mparams->kFactorIncludingRayleighDamping(this->rayleighStiffness.getValue());
 
-    const VecCoord& pos = this->mstate->read(core::ConstVecCoordId::position())->getValue();
+    const VecCoord& pos = this->mstate->read(core::vec_id::read_access::position)->getValue();
     for (unsigned int n=0; n<pos.size(); n++)
     {
         if(!d_variantSections.getValue())
@@ -281,6 +281,34 @@ void BeamHookeLawForceField<DataTypes>::addKToMatrix(const MechanicalParams* mpa
                     mat->add(offset + i + 3*n, offset + j + 3*n, -kFact * m_K_sectionList[n][i][j] * d_length.getValue()[n]);
     }
 }
+
+template<class DataTypes>
+void BeamHookeLawForceField<DataTypes>::buildStiffnessMatrix(core::behavior::StiffnessMatrix* matrix)
+{
+    static constexpr auto N = Deriv::total_size;
+    auto dfdx = matrix->getForceDerivativeIn(this->mstate)
+                    .withRespectToPositionsIn(this->mstate);
+    const VecCoord& pos = this->mstate->read(core::vec_id::read_access::position)->getValue();
+
+    const bool& variantSections = sofa::helper::ReadAccessor(d_variantSections);
+    const auto& length = sofa::helper::ReadAccessor(d_length);
+
+    for (unsigned int n=0; n<pos.size(); n++)
+    {
+        const sofa::Index currentIndex = N*n;
+        const auto& K_section = (variantSections)? m_K_sectionList[n]: m_K_section;
+        for(unsigned int i = 0; i < N; i++)
+            for (unsigned int j = 0; j< N; j++)
+                dfdx(i + currentIndex, j + currentIndex) += - K_section[i][j] * length[n];
+    }
+}
+
+template <class DataTypes>
+void BeamHookeLawForceField<DataTypes>::buildDampingMatrix(core::behavior::DampingMatrix*)
+{
+    // No damping in this ForceField
+}
+
 
 
 template<typename DataTypes>
