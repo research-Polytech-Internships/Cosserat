@@ -240,10 +240,9 @@ void BaseCosseratMapping<TIn1, TIn2, TOut>::updateExponentialSE3(
     m_nodesLogarithmSE3Vectors.clear();
 
     const auto sz = curv_abs_frames.size();
-    // Compute exponential at each frame point
     for (auto i = 0; i < sz; ++i)
     {
-      Frame g_X_frame_i;
+        Frame g_X_frame_i;
 
         const Coord1 strain_n =
             strain_state[m_indicesVectors[i] - 1]; // Cosserat reduce coordinates (strain)
@@ -253,13 +252,13 @@ void BaseCosseratMapping<TIn1, TIn2, TOut>::updateExponentialSE3(
         const SReal sub_section_length = m_framesLengthVectors[i];
         computeExponentialSE3(sub_section_length, strain_n, g_X_frame_i);
         m_framesExponentialSE3Vectors.push_back(g_X_frame_i);
-
+        
         msg_info()
                 << "_________________" << i << "_________________________" << msgendl
                 << "x :" << sub_section_length << "; strain :" << strain_n << msgendl
                 << "m_framesExponentialSE3Vectors :" << g_X_frame_i;
     }
-
+    
     // Compute the exponential on the nodes
     m_nodesExponentialSE3Vectors.push_back(
         Frame(Vec3(0.0, 0.0, 0.0),
@@ -269,7 +268,6 @@ void BaseCosseratMapping<TIn1, TIn2, TOut>::updateExponentialSE3(
     {
         Coord1 strain_n = strain_state[j];
         const SReal section_length = m_beamLengthVectors[j];
-
         Frame g_X_node_j;
         computeExponentialSE3(section_length, strain_n, g_X_node_j);
         m_nodesExponentialSE3Vectors.push_back(g_X_node_j);
@@ -292,6 +290,8 @@ void BaseCosseratMapping<TIn1, TIn2, TOut>::computeAdjoint(const Frame &frame,
     Mat3x3 tilde_u_R = tilde_u * R;
     buildAdjoint(R, tilde_u_R, adjoint);
 }
+
+
 
 template <class TIn1, class TIn2, class TOut>
 void BaseCosseratMapping<TIn1, TIn2, TOut>::computeCoAdjoint(const Frame &frame,
@@ -590,6 +590,7 @@ auto BaseCosseratMapping<TIn1, TIn2, TOut>::buildCoAdjoint(const Mat3x3 &A,
             coAdjoint[i][j + 3] = B[i][j];
         }
     }
+    
 }
 
 template <class TIn1, class TIn2, class TOut>
