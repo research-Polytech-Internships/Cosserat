@@ -203,7 +203,7 @@ TEST(ShellNewtonUpdate, SO3UpdatePreservesOrthogonality) {
     applyNodeUpdate(node, increment);
 
     // Check det(R) = 1
-    const Eigen::Matrix3d R = node.orientation.toRotationMatrix();
+    const Eigen::Matrix3d R = node.orientation.matrix();  // SO3::matrix() -> Eigen::Matrix3d
     EXPECT_NEAR(R.determinant(), 1.0, 1e-13) << "Rotation matrix det ≠ 1 after update";
 
     // Check R^T R ≈ I
@@ -264,7 +264,86 @@ TEST(ShellKinematics, StrainTwistSize) {
     EXPECT_EQ(Xt.cols(), 2);
 }
 
-} // end anonymous
+// ─── Tests 15-17: rightJacobianInverse ───────────────────────────────────────
+
+// Test 15: J_R^{-1}(0) = I
+TEST(SO3JacobianInverse, IdentityAtZero) {
+    const Eigen::Vector3d zero = Eigen::Vector3d::Zero();
+    const Eigen::Matrix3d JRinv = rightJacobianInverse(zero);
+    EXPECT_NEAR((JRinv - Eigen::Matrix3d::Identity()).norm(), 0.0, 1e-12)
+        << "J_R^{-1}(0) should be the identity matrix";
+}
+
+// Test 16: J_R^{-1}(omega) * J_R(omega) = I  (via finite differences on SO3 log)
+// We verify J_R^{-1} * J_R = I using the identity:
+//   d/dt log(exp(omega + t*eta))|_{t=0} = J_R^{-1}(omega) * eta
+// FD check: log(exp(omega + h*e_k)) - log(exp(omega)) ~= h * J_R^{-1}(omega) * e_k
+TEST(SO3JacobianInverse, InversesJacobianFD) {
+    const Eigen::Vector3d omega(0.5, -0.3, 0.2);
+    const Eigen::Matrix3d JRinv = rightJacobianInverse(omega);
+
+    const double h = 1e-6;
+    const SO3d R0 = SO3d::exp(omega);
+
+    Eigen::Matrix3d JR_fd;
+    for (int k = 0; k < 3; ++k) {
+        Eigen::Vector3d ek = Eigen::Vector3d::Zero();
+        ek(k) = 1.0;
+        // FD column k of J_R: d/dt log(exp(omega)*exp(t*ek))|_{t=0} / h
+        const Eigen::Vector3d logP = (R0 * SO3d::exp(h * ek)).log();
+        const Eigen::Vector3d logM = (R0 * SO3d::exp(-h * ek)).log();
+        JR_fd.col(k) = (logP - logM) / (2.0 * h);
+    }
+    // J_R^{-1} * J_R should be identity
+    EXPECT_NEAR((JRinv * JR_fd - Eigen::Matrix3d::Identity()).norm(), 0.0, 1e-5)
+        << "J_R^{-1} * J_R (FD) != I";
+}
+
+// Test 17: strain twist is zero for identity configuration (consistency with J_R^{-1})
+// Same as Test 3 but explicitly checking that J_R^{-1} does not corrupt zero strain.
+TEST(SO3JacobianInverse, ZeroStrainPreserved) {
+    auto nodes = flatSquareElement(1.0, 1.0);
+    // All nodes have identity orientation -> omega_bar = 0 -> J_R^{-1}(0) = I
+    // Angular strains should still be zero
+    const auto Xt = computeStrainTwistsAtCentroid(nodes);
+    EXPECT_NEAR(Xt.col(0).head<3>().norm(), 0.0, 1e-13)
+        << "Angular strain xi_{t1}[ang] != 0 for identity config";
+    EXPECT_NEAR(Xt.col(1).head<3>().norm(), 0.0, 1e-13)
+        << "Angular strain xi_{t2}[ang] != 0 for identity config";
+}
+
+// Test 18: large rotation consistency
+// For a 45 deg rotation between adjacent nodes, J_R^{-1} must differ from I.
+TEST(SO3JacobianInverse, LargeRotationNonTrivial) {
+    // Build an element where nodes 2 and 3 are rotated by 45 deg around Z
+    // relative to nodes 0 and 1 (simulates 1/8 of a cylinder with N_theta=8)
+    std::array<NodeConfig, NODES_PER_ELEM> nodes;
+    nodes[0].position = {-0.5, -0.5, 0.0};
+    nodes[1].position = { 0.5, -0.5, 0.0};
+    nodes[2].position = { 0.5,  0.5, 0.0};
+    nodes[3].position = {-0.5,  0.5, 0.0};
+
+    // Nodes 0,1: identity; nodes 2,3: 45 deg rotation around Z
+    const double angle = M_PI / 4.0;
+    const Eigen::Vector3d axisZ(0.0, 0.0, 1.0);
+    nodes[0].orientation = SO3d::identity();
+    nodes[1].orientation = SO3d::identity();
+    nodes[2].orientation = SO3d::exp(angle * axisZ);
+    nodes[3].orientation = SO3d::exp(angle * axisZ);
+
+    // omega_bar = 0.5 * angle * axisZ (mean of 0 and angle)
+    const Eigen::Vector3d omega_bar(0.0, 0.0, angle / 2.0);
+    const Eigen::Matrix3d JRinv = rightJacobianInverse(omega_bar);
+
+    // Verify J_R^{-1} != I for this non-zero omega_bar
+    EXPECT_GT((JRinv - Eigen::Matrix3d::Identity()).norm(), 1e-3)
+        << "J_R^{-1} should differ from I for 22.5 deg mean rotation";
+
+    // Verify the strain computation runs without NaN/Inf
+    const auto Xt = computeStrainTwistsAtCentroid(nodes);
+    EXPECT_TRUE(Xt.allFinite())
+        << "Strain twist contains NaN or Inf for large-rotation element";
+}
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 int main(int argc, char** argv) {

@@ -96,7 +96,7 @@ $$
 Pour $\alpha \in \{1, 2\}$ :
 
 $$
-\zeta_{t\alpha} = \left(g_t^{-1} \frac{\partial g_t}{\partial X_\alpha}\right)^\vee \in \mathbb{R}^6 \cong \mathfrak{se}(3)
+\xi_{t\alpha} = \left(g_t^{-1} \frac{\partial g_t}{\partial X_\alpha}\right)^\vee \in \mathbb{R}^6 \cong \mathfrak{se}(3)
 \qquad \text{(Éq. 17)}
 $$
 
@@ -110,7 +110,7 @@ Le bloc supérieur gauche $R_t^T \partial R_t/\partial X_\alpha$ est une matrice
 L'opérateur vee (${}^\vee$) extrait le vecteur axial :
 
 $$
-\zeta_{t\alpha} = \begin{bmatrix}
+\xi_{t\alpha} = \begin{bmatrix}
 \underbrace{\left(R_t^T \dfrac{\partial R_t}{\partial X_\alpha}\right)^\vee}_{\phi_{t\alpha} \,\in\, \mathbb{R}^3 \; \text{(angulaire)}} \\[10pt]
 \underbrace{R_t^T \dfrac{\partial \varphi_t}{\partial X_\alpha}}_{\rho_{t\alpha} \,\in\, \mathbb{R}^3 \; \text{(linéaire)}}
 \end{bmatrix}
@@ -122,19 +122,19 @@ Convention lib liegroups : **indices 0-2 = angulaire** ($\phi$), **indices 3-5 =
 ### Strain twist de référence
 
 $$
-\zeta_{0\alpha} = \left(g_0^{-1} \frac{\partial g_0}{\partial X_\alpha}\right)^\vee \in \mathbb{R}^6
+\xi_{0\alpha} = \left(g_0^{-1} \frac{\partial g_0}{\partial X_\alpha}\right)^\vee \in \mathbb{R}^6
 \qquad \text{(Éq. 18)}
 $$
 
 ### Strain différentiel (mesure de déformation)
 
 $$
-E_{t\alpha} = \zeta_{t\alpha} - \zeta_{0\alpha} \in \mathbb{R}^6
+E_{t\alpha} = \xi_{t\alpha} - \xi_{0\alpha} \in \mathbb{R}^6
 \qquad \text{(Éq. 19)}
 $$
 
 > **Remarque :** Pour une plaque plate avec $R_0 = I$ et $\varphi_0$ linéaire, on a
-> $\zeta_{01} = [0,0,0,1,0,0]^T$ et $\zeta_{02} = [0,0,0,0,1,0]^T$ (voir §15).
+> $\xi_{01} = [0,0,0,1,0,0]^T$ et $\xi_{02} = [0,0,0,0,1,0]^T$ (voir §15).
 
 ---
 
@@ -143,9 +143,9 @@ $$
 ### Matrices de configuration
 
 $$
-X_t = \bigl[\zeta_{t1} \,\big|\, \zeta_{t2}\bigr] \in \mathbb{R}^{6\times2},
+X_t = \bigl[\xi_{t1} \,\big|\, \xi_{t2}\bigr] \in \mathbb{R}^{6\times2},
 \qquad
-X_0 = \bigl[\zeta_{01} \,\big|\, \zeta_{02}\bigr] \in \mathbb{R}^{6\times2}
+X_0 = \bigl[\xi_{01} \,\big|\, \xi_{02}\bigr] \in \mathbb{R}^{6\times2}
 $$
 
 ### Pseudo-inverse gauche de $X_0$
@@ -201,11 +201,11 @@ où $D^{\alpha\beta} \in \mathbb{R}^{6\times6}$ est la matrice constitutive (voi
 
 $$
 -\sum_{\alpha=1}^{2} \frac{1}{j_0} \frac{\partial(j_0 S^\alpha)}{\partial X_\alpha}
-+ \sum_{\alpha=1}^{2} \mathrm{ad}^*_{\zeta_{t\alpha}} S^\alpha + f_{\mathrm{ext}} = 0
++ \sum_{\alpha=1}^{2} \mathrm{ad}^*_{\xi_{t\alpha}} S^\alpha + f_{\mathrm{ext}} = 0
 \qquad \text{(Éq. 30)}
 $$
 
-où $\mathrm{ad}^*_\xi$ est le **co-adjoint** défini par $\langle \mathrm{ad}^*_\xi \eta, \zeta \rangle = \langle \eta, \mathrm{ad}_\xi \zeta \rangle$.
+où $\mathrm{ad}^*_\xi$ est le **co-adjoint** défini par $\langle \mathrm{ad}^*_\xi \eta, \xi \rangle = \langle \eta, \mathrm{ad}_\xi \xi \rangle$.
 
 ---
 
@@ -287,7 +287,7 @@ avec $\hat\kappa = g_t^{-1} \delta g_t$ :
 
 $$
 G_{\mathrm{int}}(g_t,\kappa) = \int_{\mathcal{A}} \sum_{\alpha=1}^{2}
-\left\langle S^\alpha,\; \frac{\partial \kappa}{\partial X_\alpha} + \mathrm{ad}_{\zeta_{t\alpha}} \kappa \right\rangle j_0 \, dA
+\left\langle S^\alpha,\; \frac{\partial \kappa}{\partial X_\alpha} + \mathrm{ad}_{\xi_{t\alpha}} \kappa \right\rangle j_0 \, dA
 \qquad \text{(Éq. 32)}
 $$
 
@@ -326,7 +326,7 @@ DG_{\mathrm{int}} \cdot \eta =
 \qquad \text{(Éq. 79)}
 $$
 
-avec l'opérateur tangent $K_\alpha\eta = \dfrac{\partial\eta}{\partial X_\alpha} + \mathrm{ad}_{\zeta_{t\alpha}} \eta$
+avec l'opérateur tangent $K_\alpha\eta = \dfrac{\partial\eta}{\partial X_\alpha} + \mathrm{ad}_{\xi_{t\alpha}} \eta$
 (Lemme 1, Éq. 75).
 
 ### Raideur matérielle $K_M$
@@ -462,11 +462,11 @@ $$
 
 ### Anti-locking — évaluation au centroïde
 
-Pour éviter le **shear-locking**, les strains $\zeta_{t\alpha}$ sont évalués au
+Pour éviter le **shear-locking**, les strains $\xi_{t\alpha}$ sont évalués au
 **centroïde de l'élément** $(x,y) = (0,0)$ et supposés **constants par élément** :
 
 $$
-\zeta_{t\alpha}\big|_e = \zeta_{t\alpha}(0,0)
+\xi_{t\alpha}\big|_e = \xi_{t\alpha}(0,0)
 \qquad \text{(Éq. 63 — centroid strain evaluation)}
 $$
 
@@ -486,8 +486,8 @@ La **B-matrice** discrétisant $K_\alpha\eta$ sur un élément Q4 ($N_e = 24$ DO
 
 $$
 B_\alpha \in \mathbb{R}^{6 \times 24}, \qquad
-B_\alpha\big|_{:,\,6i:6i+6} = \frac{\partial N^i}{\partial X_\alpha}\, I_6 + N^i\, \mathrm{ad}_{\zeta_{t\alpha}}
-\qquad \text{(discrétisation de } \partial_\alpha + \mathrm{ad}_{\zeta_{t\alpha}})
+B_\alpha\big|_{:,\,6i:6i+6} = \frac{\partial N^i}{\partial X_\alpha}\, I_6 + N^i\, \mathrm{ad}_{\xi_{t\alpha}}
+\qquad \text{(discrétisation de } \partial_\alpha + \mathrm{ad}_{\xi_{t\alpha}})
 $$
 
 ---
@@ -563,26 +563,26 @@ $$
 
 ## 13. Appendices — preuves
 
-### Appendice A — Variation de $\zeta_{t\alpha}$ (Lemme 1)
+### Appendice A — Variation de $\xi_{t\alpha}$ (Lemme 1)
 
 **Résultat** (Éq. 75) :
 
 $$
-\delta\hat\zeta_{t\alpha} = \frac{\partial\hat\kappa}{\partial X_\alpha} + [\hat\zeta_{t\alpha},\hat\kappa]
-= \left(\frac{\partial\kappa}{\partial X_\alpha} + \mathrm{ad}_{\zeta_{t\alpha}}\kappa\right)^\wedge
+\delta\hat\xi_{t\alpha} = \frac{\partial\hat\kappa}{\partial X_\alpha} + [\hat\xi_{t\alpha},\hat\kappa]
+= \left(\frac{\partial\kappa}{\partial X_\alpha} + \mathrm{ad}_{\xi_{t\alpha}}\kappa\right)^\wedge
 $$
 
 **Dérivation** : depuis la définition $\hat\kappa = g_t^{-1}\delta g_t$ (Éq. 28) et la règle de chaîne (Éq. 73) :
 
 $$
-\delta\hat\zeta_{t\alpha} = -g_t^{-1}\delta g_t\, g_t^{-1}\frac{\partial g_t}{\partial X_\alpha}
+\delta\hat\xi_{t\alpha} = -g_t^{-1}\delta g_t\, g_t^{-1}\frac{\partial g_t}{\partial X_\alpha}
 + g_t^{-1}\frac{\partial(\delta g_t)}{\partial X_\alpha}
 $$
 
 Puis en substituant $g_t^{-1}\partial(\delta g_t)/\partial X_\alpha = \partial\hat\kappa/\partial X_\alpha + g_t^{-1}(\partial g_t/\partial X_\alpha)\hat\kappa$ (Éq. 74) :
 
 $$
-\delta\hat\zeta_{t\alpha} = \frac{\partial\hat\kappa}{\partial X_\alpha} + [\hat\zeta_{t\alpha},\hat\kappa] \qquad \square
+\delta\hat\xi_{t\alpha} = \frac{\partial\hat\kappa}{\partial X_\alpha} + [\hat\xi_{t\alpha},\hat\kappa] \qquad \square
 $$
 
 ### Appendice B — Raideur tangente (Proposition 1)
@@ -606,7 +606,7 @@ La partie antisymétrique de $DG_{\mathrm{int}}$ vaut après intégration par pa
 $$
 \mathrm{Skew}\!\left[\frac{\partial G_{\mathrm{int}}}{\partial\varepsilon}\right]
 = \int_{\mathcal{A}} \left\langle\left(-\frac{1}{j_0}\frac{\partial(j_0 S^\alpha)}{\partial X_\alpha}
-+ \mathrm{ad}^*_{\zeta_{t\alpha}} S^\alpha\right),\, \mathrm{ad}_\kappa\eta\right\rangle j_0\,dA
++ \mathrm{ad}^*_{\xi_{t\alpha}} S^\alpha\right),\, \mathrm{ad}_\kappa\eta\right\rangle j_0\,dA
 $$
 
 À l'équilibre, le terme entre parenthèses = $f_{\mathrm{ext}}$ (force résiduelle),
@@ -673,10 +673,10 @@ Pour une plaque plate de référence avec :
 les strains de référence au centroïde d'un élément sont :
 
 $$
-\zeta_{01} = \left(g_0^{-1}\frac{\partial g_0}{\partial X_1}\right)^\vee
+\xi_{01} = \left(g_0^{-1}\frac{\partial g_0}{\partial X_1}\right)^\vee
 = \begin{bmatrix} 0 \\ 0 \\ 0 \\ 1 \\ 0 \\ 0 \end{bmatrix},
 \qquad
-\zeta_{02} = \left(g_0^{-1}\frac{\partial g_0}{\partial X_2}\right)^\vee
+\xi_{02} = \left(g_0^{-1}\frac{\partial g_0}{\partial X_2}\right)^\vee
 = \begin{bmatrix} 0 \\ 0 \\ 0 \\ 0 \\ 1 \\ 0 \end{bmatrix}
 $$
 
@@ -692,7 +692,7 @@ $$
 
 **Interprétation :** Dans l'état naturel, les DOF angulaires (indices 0-2) sont nuls
 (pas de courbure), les extensions sont unitaires dans $X_1$ et $X_2$ (indices 3 et 4).
-Le strain différentiel $E_{t\alpha} = \zeta_{t\alpha} - \zeta_{0\alpha}$ mesure les
+Le strain différentiel $E_{t\alpha} = \xi_{t\alpha} - \xi_{0\alpha}$ mesure les
 **déviations** par rapport à cet état.
 
 ---

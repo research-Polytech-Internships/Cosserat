@@ -51,20 +51,23 @@ struct ConstitutiveTensors {
 /**
  * @brief Compute the 4 constitutive matrices D^{αβ} for an isotropic shell.
  *
- * For an isotropic material:
- *   - D^{11} = D^{22} = block-diag(C_bend, C_memb)
- *   - D^{12} = D^{21} = block-diag(C_bend_12, C_memb_12)
+ * Strain/stress 6-vector layout: [φ_x, φ_y, φ_z, ρ_x, ρ_y, ρ_z]
+ *   Angular (0-2): torsion, bending-Y, bending-Z (curvature components)
+ *   Linear  (3-5): elongation-X, shear-Y, transverse-shear-Z
  *
- * Membrane stiffness (3×3 in-plane):
- *   C_memb = Eh/(1-ν²) * | 1   ν   0          |
- *                         | ν   1   0          |
- *                         | 0   0   (1-ν)/2    |
+ * Physical mapping for a flat plate (X_1 = first, X_2 = second direction):
+ *   E_{t1}[0]=κ_11  E_{t1}[3]=ε_11  E_{t1}[4]=ε_12  E_{t1}[5]=γ_1 (transverse)
+ *   E_{t2}[1]=κ_22  E_{t2}[3]=ε_21  E_{t2}[4]=ε_22  E_{t2}[5]=γ_2 (transverse)
  *
- * Bending stiffness (3×3 curvature):
- *   C_bend = Eh³/(12(1-ν²)) * same structure
+ * Non-zero blocks:
+ *   D^{11}: [0,0]=D_b(κ_11²), [1,1]=C_b(twist), [2,2]=C_b, [3,3]=A_m, [4,4]=C_m, [5,5]=ksGh
+ *   D^{22}: [0,0]=C_b(twist), [1,1]=D_b(κ_22²), [2,2]=C_b, [3,3]=C_m, [4,4]=A_m, [5,5]=ksGh
+ *   D^{12}: [0,1]=νD_b (Poisson bending), [3,4]=νA_m (Poisson membrane)
+ *   D^{21}: [1,0]=νD_b,                   [4,3]=νA_m
  *
- * Shear transverse (added to translational diagonal, DOF [3] and [4]):
- *   k_s = G * κ * h   (appended to the diagonal blocks)
+ * NOTE — known approximation: the off-diagonal shear coupling
+ *   D^{12}[4,3]=C_m and D^{12}[2,2]=C_b (symmetric shear split)
+ *   is present in ConstitutiveLawFull but omitted here for simplicity.
  *
  * @param params  Material parameters
  * @return        ConstitutiveTensors with all D^{αβ} filled
@@ -94,32 +97,50 @@ inline ConstitutiveTensors computeConstitutiveTensors(const ShellMaterialParams&
     Cb(2,2) = factorB * (1.0 - nu) / 2.0;
 
     // ── Build D^{αβ} ─────────────────────────────────────────────────────
-    // Layout: [angular (bend/torsion): 0-2 | translational (memb+transv-shear): 3-5]
-    // For an isotropic shell: only diagonal blocks D^{11} = D^{22} are non-zero
-    // (D^{12} = D^{21} = 0 for isotropic in the principal material axes).
-    //
-    // D^{αα} = | Cb   0  |   with transverse shear on diag [3,4]
-    //           |  0   Cm |
-    //
-    // D^{αβ} (α≠β) = 0 (isotropic, no coupling between ξ¹ and ξ² directions)
-
     ConstitutiveTensors tensors;
 
-    // D^{11}  (index 0)
-    Eigen::Matrix<Scalar,6,6>& D11 = tensors.D[0];
-    D11.setZero();
-    D11.template block<3,3>(0,0) = Cb;   // bending
-    D11.template block<3,3>(3,3) = Cm;   // membrane
-    // Transverse shear correction on v_y, v_z (translational DOF 4 and 5)
-    D11(4,4) += ksGh;
-    D11(5,5) += ksGh;
+    // ── D^{11} : strains in direction X_1 ────────────────────────────────
+    // κ_11 → M_11 (bending), twist, ε_11 → N_11 (membrane), ε_12, γ_1
+    {
+        Eigen::Matrix<Scalar,6,6>& D = tensors.D[0];
+        D.setZero();
+        D(0, 0) = factorB;                          // κ_11² (bending)
+        D(1, 1) = factorB * (1.0 - nu) / 2.0;      // twist from X_1 (C_b)
+        D(2, 2) = factorB * (1.0 - nu) / 2.0;      // twist cross-term
+        D(3, 3) = factor;                           // ε_11² (membrane)
+        D(4, 4) = factor * (1.0 - nu) / 2.0;       // ε_12² (in-plane shear, C_m)
+        D(5, 5) = ksGh;                             // γ_1² (transverse shear) ← FIX: was [4,4]+[5,5]
+    }
 
-    // D^{22}  (index 3) = same structure for isotropic
-    tensors.D[3] = D11;
+    // ── D^{22} : strains in direction X_2 ────────────────────────────────
+    // κ_22 → M_22 (bending), twist, ε_22 → N_22 (membrane), ε_21, γ_2
+    {
+        Eigen::Matrix<Scalar,6,6>& D = tensors.D[3];
+        D.setZero();
+        D(0, 0) = factorB * (1.0 - nu) / 2.0;      // twist cross-term (C_b)
+        D(1, 1) = factorB;                          // κ_22² (bending)
+        D(2, 2) = factorB * (1.0 - nu) / 2.0;      // twist from X_2
+        D(3, 3) = factor * (1.0 - nu) / 2.0;       // ε_21² (in-plane shear, C_m)
+        D(4, 4) = factor;                           // ε_22² (membrane)
+        D(5, 5) = ksGh;                             // γ_2² (transverse shear)
+    }
 
-    // D^{12} = D^{21} = 0 (isotropic)
-    tensors.D[1].setZero();
-    tensors.D[2].setZero();
+    // ── D^{12} : Poisson coupling X_2→S^1 ────────────────────────────────
+    // FIX: was zero — adds missing Poisson effect between the two directions
+    {
+        Eigen::Matrix<Scalar,6,6>& D = tensors.D[1];
+        D.setZero();
+        D(0, 1) = nu * factorB;    // M_11 += ν·D_b·κ_22  (Poisson bending)
+        D(3, 4) = nu * factor;     // N_11 += ν·A_m·ε_22  (Poisson membrane)
+    }
+
+    // ── D^{21} : Poisson coupling X_1→S^2  (transpose of D^{12}) ─────────
+    {
+        Eigen::Matrix<Scalar,6,6>& D = tensors.D[2];
+        D.setZero();
+        D(1, 0) = nu * factorB;    // M_22 += ν·D_b·κ_11
+        D(4, 3) = nu * factor;     // N_22 += ν·A_m·ε_11
+    }
 
     return tensors;
 }
