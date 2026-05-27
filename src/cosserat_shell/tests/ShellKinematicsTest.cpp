@@ -1,24 +1,24 @@
 /******************************************************************************
- * Cosserat Shell — Unit tests for FEM kinematics and constitutive law       *
+ * Cosserat Shell -- Unit tests for FEM kinematics and constitutive law      *
  *                                                                            *
- * Tests:                                                                     *
- *   1. Shape functions partition of unity: Σ N^i = 1                        *
- *   2. Shape function gradient consistency                                   *
- *   3. Strain twist = zero for rigid body motion                             *
- *   4. Constitutive tensors: D^{11} is SPD                                  *
- *   5. Stress resultant linearity                                             *
- *   6. Reference element init: X_0* · X_0 ≈ I_2                            *
- *   7. Area Jacobian: positive for valid quad                                *
- *   8. Element stiffness K_e is SPD for regular flat element                 *
- *   9. Zero strain in rest configuration (F_int = 0)                         *
- *  10. Newton update: SO(3) increment preserves det(R) = 1                   *
+ * Tests 1-14 : simple version (ConstitutiveLaw + ShellElementComputer)      *
+ * Tests 15-18: rightJacobianInverse                                          *
+ * Tests 19-22: Full version (ConstitutiveLawFull + ShellElementComputerFull)*
+ *   19. D^{11} Full is SPD                                                   *
+ *   20. Poisson coupling: D^{12} != 0 for nu > 0                            *
+ *   21. Zero force at rest (Full version)                                    *
+ *   22. K_G at rest is zero (stress = 0 -> ad_S = 0)                        *
+ *   23. K_M + K_G Full is symmetric                                          *
+ *   24. geometricStiffnessRatio = 0 at reference state                      *
  ******************************************************************************/
 #include <gtest/gtest.h>
 
 #include <cosserat_shell/fem/ShellElement.h>
 #include <cosserat_shell/fem/SE3ShellKinematics.h>
 #include <cosserat_shell/fem/ConstitutiveLaw.h>
+#include <cosserat_shell/fem/ConstitutiveLawFull.h>
 #include <cosserat_shell/fem/ShellElementComputer.h>
+#include <cosserat_shell/fem/ShellElementComputerFull.h>
 #include <liegroups/SO3.h>
 
 using namespace sofa::component::cosserat::shell;
@@ -38,8 +38,13 @@ std::array<NodeConfig, NODES_PER_ELEM> flatSquareElement(double Lx = 1.0, double
     return nodes;
 }
 
-/// Build default material parameters
+/// Build default material parameters (simple version)
 ShellMaterialParams defaultMaterial() {
+    return {1000.0, 0.3, 0.001, 5.0/6.0};
+}
+
+/// Build default isotropic parameters (Full version)
+IsotropicParams defaultIsotropic() {
     return {1000.0, 0.3, 0.001, 5.0/6.0};
 }
 
@@ -343,6 +348,114 @@ TEST(SO3JacobianInverse, LargeRotationNonTrivial) {
     const auto Xt = computeStrainTwistsAtCentroid(nodes);
     EXPECT_TRUE(Xt.allFinite())
         << "Strain twist contains NaN or Inf for large-rotation element";
+}
+
+// ─── Tests 19-24: Full version (ConstitutiveLawFull + ShellElementComputerFull)
+
+// Test 19: D^{11} Full is symmetric and positive definite
+TEST(ConstitutiveLawFull, D11IsSymmetricSPD) {
+    const auto tensors = computeConstitutiveTensorsFull(defaultIsotropic());
+    const Eigen::Matrix<double,6,6>& D11 = tensors.D[0];
+
+    EXPECT_NEAR((D11 - D11.transpose()).norm(), 0.0, 1e-14)
+        << "D^{11} Full is not symmetric";
+
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double,6,6>> es(D11);
+    EXPECT_GT(es.eigenvalues().minCoeff(), 0.0)
+        << "D^{11} Full is not positive definite";
+}
+
+// Test 20: Poisson coupling D^{12} != 0 for nu > 0
+// Verifies the correction vs. the simple version where D^{12} = 0.
+TEST(ConstitutiveLawFull, PoissonCouplingNonZero) {
+    const auto tensors = computeConstitutiveTensorsFull(defaultIsotropic());
+    const Eigen::Matrix<double,6,6>& D12 = tensors.D[1];
+
+    // D^{12}[0,1] = nu * D_b  (bending Poisson)
+    // D^{12}[3,4] = nu * A_m  (membrane Poisson)
+    EXPECT_GT(std::abs(D12(0, 1)), 1e-10)
+        << "D^{12}[0,1] should be non-zero (Poisson bending coupling)";
+    EXPECT_GT(std::abs(D12(3, 4)), 1e-10)
+        << "D^{12}[3,4] should be non-zero (Poisson membrane coupling)";
+
+    // Verify D^{12} = (D^{21})^T
+    const Eigen::Matrix<double,6,6>& D21 = tensors.D[2];
+    EXPECT_NEAR((D12 - D21.transpose()).norm(), 0.0, 1e-14)
+        << "D^{12} != (D^{21})^T — asymmetric Poisson coupling";
+}
+
+// Test 21: Zero internal force at rest (Full version)
+TEST(ShellElementComputerFull, ZeroForceAtRest) {
+    auto nodes = flatSquareElement(1.0, 1.0);
+    ShellElementRef elemRef;
+    initShellElementRefFull(nodes, elemRef);
+
+    const auto tensors = computeConstitutiveTensorsFull(defaultIsotropic());
+    ShellElementCurrentFull elem;
+    computeElementForceAndStiffnessFull(nodes, elemRef, tensors, elem);
+
+    EXPECT_NEAR(elem.Fint.norm(), 0.0, 1e-12)
+        << "Non-zero internal force at rest (Full version)";
+}
+
+// Test 22: K_G = 0 at rest (stress-free -> ad_S = 0)
+TEST(ShellElementComputerFull, ZeroGeometricStiffnessAtRest) {
+    auto nodes = flatSquareElement(1.0, 1.0);
+    ShellElementRef elemRef;
+    initShellElementRefFull(nodes, elemRef);
+
+    const auto tensors = computeConstitutiveTensorsFull(defaultIsotropic());
+    ShellElementCurrentFull elem;
+    computeElementForceAndStiffnessFull(nodes, elemRef, tensors, elem);
+
+    EXPECT_NEAR(elem.KG.norm(), 0.0, 1e-12)
+        << "K_G should be zero at rest (S = 0 -> ad_S = 0)";
+    EXPECT_NEAR(geometricStiffnessRatio(elem), 0.0, 1e-12)
+        << "geometricStiffnessRatio should be zero at rest";
+}
+
+// Test 23: K = K_M + K_G is symmetric (Full version)
+TEST(ShellElementComputerFull, StiffnessIsSymmetric) {
+    auto nodes = flatSquareElement(1.0, 1.0);
+    ShellElementRef elemRef;
+    initShellElementRefFull(nodes, elemRef);
+
+    const auto tensors = computeConstitutiveTensorsFull(defaultIsotropic());
+    ShellElementCurrentFull elem;
+    computeElementForceAndStiffnessFull(nodes, elemRef, tensors, elem);
+
+    const double skewK  = (elem.K  - elem.K.transpose()).norm();
+    const double skewKM = (elem.KM - elem.KM.transpose()).norm();
+    EXPECT_NEAR(skewK  / (elem.K.norm()  + 1e-14), 0.0, 1e-8)
+        << "K_M + K_G Full is not symmetric";
+    EXPECT_NEAR(skewKM / (elem.KM.norm() + 1e-14), 0.0, 1e-8)
+        << "K_M Full is not symmetric";
+}
+
+// Test 24: Orthotropic Full vs. isotropic Full -- same when E1=E2, G12=G
+TEST(ShellElementComputerFull, OrthotropicReducesToIsotropic) {
+    const IsotropicParams iso{1000.0, 0.3, 0.001, 5.0/6.0};
+    const double G = iso.E / (2.0 * (1.0 + iso.nu));
+
+    // Build orthotropic with identical constants -> should match isotropic
+    OrthotropicParams orth;
+    orth.E1    = iso.E;
+    orth.E2    = iso.E;
+    orth.G12   = G;
+    orth.G13   = G;
+    orth.G23   = G;
+    orth.nu12  = iso.nu;
+    orth.h     = iso.h;
+    orth.kappa1 = iso.kappa;
+    orth.kappa2 = iso.kappa;
+
+    const auto tensIso  = computeConstitutiveTensorsFull(iso);
+    const auto tensOrth = computeConstitutiveTensorsOrthotropic(orth);
+
+    for (int ab = 0; ab < 4; ++ab) {
+        EXPECT_NEAR((tensIso.D[ab] - tensOrth.D[ab]).norm(), 0.0, 1e-10)
+            << "D^{" << ab << "} differs between isotropic and equivalent orthotropic";
+    }
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────────
